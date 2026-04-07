@@ -10,10 +10,18 @@ type CompactItem = {
 export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY.');
+  if (!supabaseUrl) {
+    throw new Error('Falta NEXT_PUBLIC_SUPABASE_URL.');
   }
+
+  const supabaseKey = supabaseServiceRoleKey ?? supabaseAnonKey;
+  if (!supabaseKey) {
+    throw new Error('Falta SUPABASE_SERVICE_ROLE_KEY o NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+  }
+
+  const isLimitedMode = !supabaseServiceRoleKey;
 
   if (!session.id) {
     throw new Error('Session sin id.');
@@ -31,18 +39,20 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     throw new Error('Metadata cart inválida.');
   }
 
-  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false }
   });
 
-  const { data: processed } = await supabaseAdmin
-    .from('stripe_sessions_procesadas')
-    .select('session_id')
-    .eq('session_id', session.id)
-    .maybeSingle();
+  if (!isLimitedMode) {
+    const { data: processed } = await supabaseAdmin
+      .from('stripe_sessions_procesadas')
+      .select('session_id')
+      .eq('session_id', session.id)
+      .maybeSingle();
 
-  if (processed) {
-    return { duplicate: true };
+    if (processed) {
+      return { duplicate: true, mode: 'service_role' };
+    }
   }
 
   for (const item of items) {
@@ -69,13 +79,15 @@ export async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     }
   }
 
-  const { error: insertSessionError } = await supabaseAdmin
-    .from('stripe_sessions_procesadas')
-    .insert({ session_id: session.id });
+  if (!isLimitedMode) {
+    const { error: insertSessionError } = await supabaseAdmin
+      .from('stripe_sessions_procesadas')
+      .insert({ session_id: session.id });
 
-  if (insertSessionError) {
-    throw new Error(`No se pudo registrar sesión procesada: ${insertSessionError.message}`);
+    if (insertSessionError) {
+      throw new Error(`No se pudo registrar sesión procesada: ${insertSessionError.message}`);
+    }
   }
 
-  return { duplicate: false };
+  return { duplicate: false, mode: isLimitedMode ? 'anon_fallback' : 'service_role' };
 }

@@ -83,6 +83,9 @@ SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
+
+> `SUPABASE_SERVICE_ROLE_KEY` es recomendable para idempotencia (guardar `stripe_sessions_procesadas`). Si no la configuras, el sistema usa fallback con `NEXT_PUBLIC_SUPABASE_ANON_KEY` para intentar descontar, pero sin control robusto de duplicados.
+
 ## 3) Configurar Supabase
 
 ### SQL sugerido para tablas y roles
