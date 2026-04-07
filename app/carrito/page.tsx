@@ -1,14 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useCart } from '@/components/CartProvider';
 import { useAuth } from '@/components/AuthProvider';
 
 export default function CarritoPage() {
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { items, totalPrice, updateQuantity, removeItem, clearCart } = useCart();
   const [mensaje, setMensaje] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    const sessionId = searchParams.get('session_id');
+
+    if (status !== 'success' || !sessionId) return;
+
+    const confirmPurchase = async () => {
+      try {
+        const response = await fetch('/api/checkout/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          setMensaje(data.error ?? 'Pago realizado, pero no se pudo confirmar inventario.');
+          return;
+        }
+
+        clearCart();
+        setMensaje('¡Pago confirmado! Inventario de boletos actualizado.');
+      } catch (error) {
+        setMensaje(`Pago realizado, pero falló la confirmación: ${(error as Error).message}`);
+      }
+    };
+
+    confirmPurchase();
+  }, [searchParams, clearCart]);
 
   const checkout = async () => {
     if (!user) {

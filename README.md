@@ -150,6 +150,9 @@ Para descontar `limite_boletos` cuando Stripe confirma pago:
 
 El webhook procesa `checkout.session.completed` y descuenta boletos de los ítems tipo `boleto-*`.
 
+> Además del webhook, el frontend confirma la compra al volver de Stripe (`/api/checkout/confirm`) usando `session_id` en la URL de éxito, como respaldo por si el webhook no llega en local.
+
+
 ### Prueba local rápida con Stripe CLI
 
 ```bash

@@ -63,8 +63,22 @@ export default function EventosPage() {
       fetchEventos();
     };
 
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchEventos();
+      }
+    };
+
+    const intervalId = window.setInterval(fetchEventos, 30000);
+
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [fetchEventos]);
 
   const onAddTicket = (evento: Evento) => {
@@ -93,6 +107,7 @@ export default function EventosPage() {
         {loading ? 'Cargando...' : 'Recargar eventos'}
       </button>
 
+      {loading && <p>Cargando eventos...</p>}
       {mensaje && <p>{mensaje}</p>}
       {eventos.length > 0 && (
         <ul className="event-list">
